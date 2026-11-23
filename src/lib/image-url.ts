@@ -2,7 +2,7 @@ export const POSTER_FALLBACK_SRC = '/poster-fallback.svg';
 
 const DEFAULT_WSRV_WIDTH = 256;
 const DEFAULT_DOUBAN_IMAGE_PROXY_TYPE = 'auto';
-const TIER1_DIRECT_HOSTS = new Set(['lain.bgm.tv']);
+const TIER1_DIRECT_HOSTS = new Set(['lain.bgm.tv', 'lain.bgm.lat']);
 const WSRV_HOSTS = new Set(['wsrv.nl', 'images.weserv.nl']);
 const CMLIUSSSS_TENCENT_HOST = 'img.doubanio.cmliussss.net';
 const CMLIUSSSS_ALI_HOST = 'img.doubanio.cmliussss.com';
@@ -17,7 +17,36 @@ export type DoubanImageProxyType =
   | 'cmliussss-cdn-tencent'
   | 'cmliussss-cdn-ali'
   | 'custom';
+function buildDoubanImageCandidates(
+  parsedUrl: URL,
+  proxyType: string,
+  proxyUrl: string,
+): string[] {
+  const candidates: string[] = [];
 
+  // 保留用户显式选择，自动模式优先走腾讯云、阿里云直连。
+  if (proxyType && proxyType !== 'auto') {
+    candidates.push(applyDoubanImageProxy(parsedUrl, proxyType, proxyUrl));
+  }
+  candidates.push(
+    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-tencent', proxyUrl),
+    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-ali', proxyUrl),
+  );
+
+  const storedAutoProvider = getStoredAutoImageProvider();
+  if (storedAutoProvider && storedAutoProvider !== 'server') {
+    candidates.push(
+      applyDoubanImageProxy(parsedUrl, storedAutoProvider, proxyUrl),
+    );
+  }
+  candidates.push(
+    applyDoubanImageProxy(parsedUrl, 'img3', proxyUrl),
+    applyDoubanImageProxy(parsedUrl, 'direct', proxyUrl),
+    POSTER_FALLBACK_SRC,
+  );
+
+  return uniqueUrls(candidates);
+}
 export interface DoubanImageProxyOverride {
   proxyType?: string;
   proxyUrl?: string;
