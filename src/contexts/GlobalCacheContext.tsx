@@ -119,7 +119,7 @@ export function GlobalCacheProvider({ children }: { children: ReactNode }) {
         fetchingRef.current.add(cacheKey);
 
         try {
-          const freshData = await fetchHomeDataFromAPI(homeData);
+          const freshData = await fetchHomeDataFromAPI(homeData, setHomeData);
           setHomeData(freshData);
           setHomeLastFetch(Date.now());
           globalCache.set(cacheKey, freshData, CACHE_TIME / 1000);
@@ -137,7 +137,7 @@ export function GlobalCacheProvider({ children }: { children: ReactNode }) {
       setHomeError(null);
 
       try {
-        const freshData = await fetchHomeDataFromAPI(homeData || undefined);
+        const freshData = await fetchHomeDataFromAPI(homeData || undefined, setHomeData);
         // 使用 flushSync 强制同步更新，避免批处理延迟
         flushSync(() => {
           setHomeData(freshData);
@@ -284,44 +284,50 @@ export function useGlobalCache() {
 
 async function fetchHomeDataFromAPI(
   previousData?: HomePageData | null,
+  onPartialData?: (data: HomePageData) => void,
 ): Promise<HomePageData> {
-  // 使用 Promise.allSettled 并行加载，任一失败不影响其他
+  let currentData: HomePageData = {
+    hotMovies: previousData?.hotMovies || [],
+    hotTvShows: previousData?.hotTvShows || [],
+    hotVarietyShows: previousData?.hotVarietyShows || [],
+    bangumiCalendar: previousData?.bangumiCalendar || [],
+  };
+  const publishSection = (patch: Partial<HomePageData>) => {
+    currentData = { ...currentData, ...patch };
+    onPartialData?.(currentData);
+  };
+
+  // 每一路完成后立即显示，较慢的新番请求不再阻塞豆瓣栏目。
   const results = await Promise.allSettled([
-    getDoubanCategories({ kind: 'movie', category: '热门', type: '全部' }),
-    getDoubanCategories({ kind: 'tv', category: 'tv', type: 'tv' }),
-    getDoubanCategories({ kind: 'tv', category: 'show', type: 'show' }),
-    GetBangumiCalendarData(),
+    getDoubanCategories({ kind: 'movie', category: '热门', type: '全部' })
+      .then((result) => {
+        if (result.code !== 200) throw new Error(result.message);
+        publishSection({ hotMovies: result.list });
+      }),
+    getDoubanCategories({ kind: 'tv', category: 'tv', type: 'tv' })
+      .then((result) => {
+        if (result.code !== 200) throw new Error(result.message);
+        publishSection({ hotTvShows: result.list });
+      }),
+    getDoubanCategories({ kind: 'tv', category: 'show', type: 'show' })
+      .then((result) => {
+        if (result.code !== 200) throw new Error(result.message);
+        publishSection({ hotVarietyShows: result.list });
+      }),
+    GetBangumiCalendarData().then((calendar) => {
+      publishSection({ bangumiCalendar: calendar });
+    }),
   ]);
 
-  const [moviesResult, tvResult, varietyResult, bangumiResult] = results;
-  const doubanFailures = [moviesResult, tvResult, varietyResult].filter(
-    (result) => result.status === 'rejected',
-  );
-
-  if (doubanFailures.length > 0 && typeof window !== 'undefined') {
+  if (
+    results.slice(0, 3).some((result) => result.status === 'rejected') &&
+    typeof window !== 'undefined'
+  ) {
     window.dispatchEvent(
       new CustomEvent('globalError', {
-        detail: { message: '部分豆瓣首页数据加载失败，已保留可用缓存' },
+        detail: { message: '部分豆瓣首页数据加载失败，已保留可用数据' },
       }),
     );
   }
-
-  return {
-    hotMovies:
-      moviesResult.status === 'fulfilled' && moviesResult.value.code === 200
-        ? moviesResult.value.list
-        : previousData?.hotMovies || [],
-    hotTvShows:
-      tvResult.status === 'fulfilled' && tvResult.value.code === 200
-        ? tvResult.value.list
-        : previousData?.hotTvShows || [],
-    hotVarietyShows:
-      varietyResult.status === 'fulfilled' && varietyResult.value.code === 200
-        ? varietyResult.value.list
-        : previousData?.hotVarietyShows || [],
-    bangumiCalendar:
-      bangumiResult.status === 'fulfilled'
-        ? bangumiResult.value
-        : previousData?.bangumiCalendar || [],
-  };
+  return currentData;
 }
