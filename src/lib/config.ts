@@ -2,6 +2,8 @@
 
 import { db } from '@/lib/db';
 
+import bundledConfig from '../../config.json';
+
 import { AdminConfig, SearchResultLoadMode } from './admin.types';
 import { getDefaultPanSouConfig, normalizePanSouConfig } from './pansou';
 import { normalizePrivateLibraryConfig } from './private-library-config';
@@ -410,7 +412,7 @@ async function getInitConfig(
  */
 export function getLocalModeConfig(): AdminConfig {
   const adminConfig: AdminConfig = {
-    ConfigFile: '',
+    ConfigFile: JSON.stringify(bundledConfig),
     ConfigSubscribtion: {
       URL: '',
       AutoUpdate: false,
@@ -473,7 +475,7 @@ export function getLocalModeConfig(): AdminConfig {
       enabled: true,
     },
   };
-  return adminConfig;
+  return refineConfig(adminConfig);
 }
 
 export async function getConfig(): Promise<AdminConfig> {
@@ -489,7 +491,7 @@ export async function getConfig(): Promise<AdminConfig> {
 
   // db 中无配置，执行一次初始化
   if (!adminConfig) {
-    const initConfig = await getInitConfig('');
+    const initConfig = await getInitConfig(JSON.stringify(bundledConfig));
     return saveAdminConfigWithVerification(initConfig);
   }
 
