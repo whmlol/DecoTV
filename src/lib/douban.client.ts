@@ -129,7 +129,38 @@ export async function getDoubanCategories(
     start: pageStart.toString(),
   });
 
-  return fetchDoubanApi('/api/douban/categories', requestParams);
+  // 首页分类直接使用已验证可直连的镜像，不经过站点 API。
+  const hosts = ['m.douban.cmliussss.net', 'm.douban.cmliussss.com'];
+  let lastError = '';
+  for (const host of hosts) {
+    try {
+      const response = await fetch(
+        `https://${host}/rexxar/api/v2/subject/recent_hot/${kind}?${requestParams.toString()}`,
+        { signal: AbortSignal.timeout(8000), credentials: 'omit' },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data?.items)) throw new Error('无效的豆瓣响应');
+      return {
+        code: 200,
+        message: '获取成功',
+        list: data.items
+          .filter((item: any) => item && item.id && item.title)
+          .map((item: any) => ({
+            id: String(item.id),
+            title: item.title,
+            poster: item.pic?.normal || item.pic?.large || '',
+            rate: typeof item.rating?.value === 'number'
+              ? item.rating.value.toFixed(1)
+              : '',
+            year: item.card_subtitle?.match(/(\d{4})/)?.[1] || '',
+          })),
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error(`豆瓣腾讯云和阿里云线路均不可用：${lastError}`);
 }
 
 export async function getDoubanList(
