@@ -17,36 +17,7 @@ export type DoubanImageProxyType =
   | 'cmliussss-cdn-tencent'
   | 'cmliussss-cdn-ali'
   | 'custom';
-function buildDoubanImageCandidates(
-  parsedUrl: URL,
-  proxyType: string,
-  proxyUrl: string,
-): string[] {
-  const candidates: string[] = [];
 
-  // 保留用户显式选择，自动模式优先走腾讯云、阿里云直连。
-  if (proxyType && proxyType !== 'auto') {
-    candidates.push(applyDoubanImageProxy(parsedUrl, proxyType, proxyUrl));
-  }
-  candidates.push(
-    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-tencent', proxyUrl),
-    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-ali', proxyUrl),
-  );
-
-  const storedAutoProvider = getStoredAutoImageProvider();
-  if (storedAutoProvider && storedAutoProvider !== 'server') {
-    candidates.push(
-      applyDoubanImageProxy(parsedUrl, storedAutoProvider, proxyUrl),
-    );
-  }
-  candidates.push(
-    applyDoubanImageProxy(parsedUrl, 'img3', proxyUrl),
-    applyDoubanImageProxy(parsedUrl, 'direct', proxyUrl),
-    POSTER_FALLBACK_SRC,
-  );
-
-  return uniqueUrls(candidates);
-}
 export interface DoubanImageProxyOverride {
   proxyType?: string;
   proxyUrl?: string;
@@ -231,23 +202,23 @@ function buildDoubanImageCandidates(
 ): string[] {
   const candidates: string[] = [];
 
-  // 图片代理 fallback：用户指定节点先试，随后按 auto 的稳定优先级逐级降级。
+  // 保留用户显式选择，自动模式优先走腾讯云、阿里云直连。
   if (proxyType && proxyType !== 'auto') {
     candidates.push(applyDoubanImageProxy(parsedUrl, proxyType, proxyUrl));
   }
+  candidates.push(
+    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-tencent', proxyUrl),
+    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-ali', proxyUrl),
+  );
 
   const storedAutoProvider = getStoredAutoImageProvider();
-  if (storedAutoProvider && storedAutoProvider !== proxyType) {
+  if (storedAutoProvider && storedAutoProvider !== 'server') {
     candidates.push(
       applyDoubanImageProxy(parsedUrl, storedAutoProvider, proxyUrl),
     );
   }
-
   candidates.push(
     applyDoubanImageProxy(parsedUrl, 'img3', proxyUrl),
-    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-ali', proxyUrl),
-    applyDoubanImageProxy(parsedUrl, 'cmliussss-cdn-tencent', proxyUrl),
-    applyDoubanImageProxy(parsedUrl, 'server', proxyUrl),
     applyDoubanImageProxy(parsedUrl, 'direct', proxyUrl),
     POSTER_FALLBACK_SRC,
   );
