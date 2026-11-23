@@ -260,36 +260,6 @@ function shouldSkipAuth(pathname: string): boolean {
     '/register', // 允许访问注册页面
   ];
 
-  // 本地模式 (无数据库) 下，允许跳过 admin API 鉴权
-  // 这是为了解决"鸡生蛋"问题：用户需要先配置系统才能登录，但登录又需要先有配置
-  // 安全性说明：仅当 STORAGE_TYPE=localstorage 且没有设置数据库连接时才生效
-  const storageType = process.env.NEXT_PUBLIC_STORAGE_TYPE || 'localstorage';
-  const hasRedis = !!(process.env.REDIS_URL || process.env.KV_REST_API_URL);
-
-  if (
-    storageType === 'localstorage' &&
-    !hasRedis &&
-    (!isPublicMode() || isPublicAdminAllowed())
-  ) {
-    // 本地模式下允许访问 admin 相关 API（用于获取/保存配置）
-    const localModeAllowedPaths = [
-      '/api/admin/config',
-      '/api/admin/site',
-      '/api/admin/source',
-      '/api/admin/category',
-      '/api/admin/pansou',
-      '/api/admin/live',
-      '/api/admin/user',
-      '/api/admin/config_file',
-      '/api/admin/reset',
-      '/admin', // 允许直接访问 admin 页面
-    ];
-
-    if (localModeAllowedPaths.some((path) => pathname.startsWith(path))) {
-      return true;
-    }
-  }
-
   return skipPaths.some((path) => pathname.startsWith(path));
 }
 
