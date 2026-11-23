@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_PUBLIC_STORAGE_TYPE = "localstorage"
+  NEXT_PUBLIC_AUTH_MODE = "password"
+  NEXT_PUBLIC_DISABLE_YELLOW_FILTER = "false"
