@@ -55,7 +55,10 @@ function normalizeBangumiData(
 
 export async function GetBangumiCalendarData(): Promise<BangumiCalendarData[]> {
   try {
-    const response = await fetch('https://api.bgm.tv/calendar');
+    const response = await fetch('https://api.bgm.lat/calendar', {
+      signal: AbortSignal.timeout(12000),
+      credentials: 'omit',
+    });
     if (!response.ok) {
       return [];
     }
