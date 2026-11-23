@@ -27,7 +27,7 @@ jobs:
         run: |
           curl --fail --show-error --silent --location \
             --retry 3 --retry-delay 5 --connect-timeout 20 --max-time 120 \
-            "https://raw.githubusercontent.com/hafrey1/LunaTV-config/main/LunaTV-config.json" \
+            "https://raw.githubusercontent.com/hafrey1/LunaTV-config/main/jin18.json" \
             --output "$RUNNER_TEMP/lunatv-config.json"
 
       - name: 校验配置并写入（失败时保留旧配置）
@@ -43,12 +43,18 @@ jobs:
             throw new Error('配置缺少非空 api_site，停止同步');
           }
           for (const [key, site] of Object.entries(config.api_site)) {
+            const label = [key, site?.name, site?.api, site?.detail].join(' ');
+            if (site?.is_adult === true || /🔞|18禁|成人|adult|porn|xxx/i.test(label)) {
+              delete config.api_site[key];
+              continue;
+            }
             if (!key || !site || typeof site.name !== 'string' || !site.name.trim() ||
                 typeof site.api !== 'string' || !['http:', 'https:'].includes(new URL(site.api).protocol)) {
               throw new Error('无效的播放源配置：' + key);
             }
             new URL(site.api);
           }
+          if (Object.keys(config.api_site).length === 0) throw new Error('过滤后没有普通影视源，停止同步');
           fs.writeFileSync('config.json', JSON.stringify(config, null, 2) + '\n');
           console.log('已校验 ' + Object.keys(config.api_site).length + ' 个播放源');
           NODE
